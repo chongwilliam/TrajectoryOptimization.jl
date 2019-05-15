@@ -43,57 +43,62 @@ initial_controls!(prob, U0)
 solve!(prob, opts_ilqr)
 @test norm(prob.X[N] - xf) < 5.0e-3
 
-# constrained w/ final position
-goal_con = goal_constraint(xf)
-con = [goal_con]
-prob = Problem(model, Objective(costfun,N),constraints=ProblemConstraints(con,N), x0=x0, N=N, dt=dt)
-initial_controls!(prob, U0)
-solve!(prob, opts_al)
-@test norm(prob.X[N] - xf) < opts_al.constraint_tolerance
-@test max_violation(prob) < opts_al.constraint_tolerance
-
-# constrained w/ final position and control limits
-bnd = bound_constraint(n,m,u_min=0.0,u_max=6.0,trim=true)
-con = [bnd,goal_con]
-prob = Problem(model, Objective(costfun,N), constraints=ProblemConstraints(con,N), x0=x0, N=N, dt=dt)
-initial_controls!(prob, U0)
-solve!(prob, opts_al)
-@test norm(prob.X[N] - xf) < opts_al.constraint_tolerance
-@test max_violation(prob) < opts_al.constraint_tolerance
-
-# constrained w/ final position, control limits, static obstacles
-r_quad = 1.0
-r_sphere = 3.0
-spheres = ((0.,10.,0.,r_sphere),(0.,20.,0.,r_sphere),(0.,30.,0.,r_sphere))
-n_spheres = 3
-
-function sphere_obs3(c,x,u)
-    for i = 1:n_spheres
-        # c[i] = TrajectoryOptimization.sphere_constraint(x,spheres[i][1],spheres[i][2],spheres[i][3],spheres[i][4]+r_quad)
-        c[i] = TrajectoryOptimization.circle_constraint(x,spheres[i][1],spheres[i][2],spheres[i][4]+r_quad)
-    end
-    return nothing
-end
-
-obs = Constraint{Inequality}(sphere_obs3,n,m,n_spheres,:obs)
-con = [bnd,obs,goal_con]
-prob_con = ProblemConstraints(con,N)
-prob = Problem(model, Objective(costfun,N), constraints=ProblemConstraints(con,N),x0=x0, N=N, dt=dt)
-initial_controls!(prob, U0)
-opts_al.constraint_tolerance=1.0e-3
-opts_al.constraint_tolerance_intermediate=1.0e-3
-solve!(prob, opts_al)
-@test norm(prob.X[N] - xf) < opts_al.constraint_tolerance
-@test max_violation(prob) < opts_al.constraint_tolerance
+# # constrained w/ final position
+# goal_con = goal_constraint(xf)
+# con = [goal_con]
+# prob = Problem(model, Objective(costfun,N),constraints=ProblemConstraints(con,N), x0=x0, N=N, dt=dt)
+# initial_controls!(prob, U0)
+# solve!(prob, opts_al)
+# @test norm(prob.X[N] - xf) < opts_al.constraint_tolerance
+# @test max_violation(prob) < opts_al.constraint_tolerance
+#
+# # constrained w/ final position and control limits
+# bnd = bound_constraint(n,m,u_min=0.0,u_max=6.0,trim=true)
+# con = [bnd,goal_con]
+# prob = Problem(model, Objective(costfun,N), constraints=ProblemConstraints(con,N), x0=x0, N=N, dt=dt)
+# initial_controls!(prob, U0)
+# solve!(prob, opts_al)
+# @test norm(prob.X[N] - xf) < opts_al.constraint_tolerance
+# @test max_violation(prob) < opts_al.constraint_tolerance
+#
+# # constrained w/ final position, control limits, static obstacles
+# r_quad = 1.0
+# r_sphere = 3.0
+# spheres = ((0.,10.,0.,r_sphere),(0.,20.,0.,r_sphere),(0.,30.,0.,r_sphere))
+# n_spheres = 3
+#
+# function sphere_obs3(c,x,u)
+#     for i = 1:n_spheres
+#         # c[i] = TrajectoryOptimization.sphere_constraint(x,spheres[i][1],spheres[i][2],spheres[i][3],spheres[i][4]+r_quad)
+#         c[i] = TrajectoryOptimization.circle_constraint(x,spheres[i][1],spheres[i][2],spheres[i][4]+r_quad)
+#     end
+#     return nothing
+# end
+#
+# obs = Constraint{Inequality}(sphere_obs3,n,m,n_spheres,:obs)
+# con = [bnd,obs,goal_con]
+# prob_con = ProblemConstraints(con,N)
+# prob = Problem(model, Objective(costfun,N), constraints=ProblemConstraints(con,N),x0=x0, N=N, dt=dt)
+# initial_controls!(prob, U0)
+# opts_al.constraint_tolerance=1.0e-3
+# opts_al.constraint_tolerance_intermediate=1.0e-3
+# solve!(prob, opts_al)
+# @test norm(prob.X[N] - xf) < opts_al.constraint_tolerance
+# @test max_violation(prob) < opts_al.constraint_tolerance
 
 # constrained with circles
 r_quad = 1.0
-r_circle = 2.0
+r_circle = 1.0
 circles = ((0.,50.,r_circle),(25.,25.,r_circle),(25.,50.,r_circle))
 circles_final = ((0.,50-50,r_circle),(25-25,25.,r_circle),(25,50-25,r_circle))
 n_circles = 3
 
-function circle_obs_dyn(c,x,u,k)
+bnd = bound_constraint(n,m,u_min=0.0,u_max=6.0,trim=true)
+goal_con = goal_constraint(xf)
+
+global k
+
+function circle_obs_dyn(c,x,u)
     for i = 1:n_circles
         if i == 1  # -y direction
             c[i] = TrajectoryOptimization.circle_constraint(x,circles[i][1],circles[i][2]-(50.0/N)*(k),circles[i][3]+r_quad)
