@@ -10,8 +10,8 @@ model = Dynamics.quadrotor_model
 n = model.n; m = model.m
 
 # cost
-Q = (1.0e-1)*Diagonal(I,n)
-R = (1.0e-1)*Diagonal(I,m)
+Q = (1.0e-2)*Diagonal(I,n)
+R = (1.0e-2)*Diagonal(I,m)
 Qf = 1000.0*Diagonal(I,n)
 
 # -initial state
@@ -88,9 +88,9 @@ solve!(prob, opts_ilqr)
 
 # constrained with circles
 r_quad = 1.0
-r_circle = 1.0
-circles = ((0.,50.,r_circle),(25.,25.,r_circle),(25.,50.,r_circle))
-circles_final = ((0.,50-50,r_circle),(25-25,25.,r_circle),(25,50-25,r_circle))
+r_circle = 5.0
+circles = ((0.,10.,r_circle),(25.,25.,r_circle),(25.,50.,r_circle))
+circles_final = ((0.,50-25,r_circle),(25,25.,r_circle),(25,50-25,r_circle))
 n_circles = 3
 
 bnd = bound_constraint(n,m,u_min=0.0,u_max=6.0,trim=true)
@@ -99,11 +99,13 @@ goal_con = goal_constraint(xf)
 global k
 
 function circle_obs_dyn(c,x,u)
+	# global k
     for i = 1:n_circles
+		global k
         if i == 1  # -y direction
-            c[i] = TrajectoryOptimization.circle_constraint(x,circles[i][1],circles[i][2]-(50.0/N)*(k),circles[i][3]+r_quad)
+            c[i] = TrajectoryOptimization.circle_constraint(x,circles[i][1],circles[i][2]+(25.0/N)*(k),circles[i][3]+r_quad)
         elseif i == 2  # -x direction
-            c[i] = TrajectoryOptimization.circle_constraint(x,circles[i][1]-(25.0/N)*(k),circles[i][2],circles[i][3]+r_quad)
+            c[i] = TrajectoryOptimization.circle_constraint(x,circles[i][1]-(25.0/N)*(k)*0,circles[i][2],circles[i][3]+r_quad)
         elseif i == 3  # -x direction
             c[i] = TrajectoryOptimization.circle_constraint(x,circles[i][1],circles[i][2]-(25.0/N)*(k),circles[i][3]+r_quad)
         end
@@ -112,11 +114,13 @@ function circle_obs_dyn(c,x,u)
 end
 
 # constrained w/ final position, control limits, dynamic obstacles
-function get_obs_con(k)  # function call to setup time-vectorized obstacle track
+function get_obs_con(kk)  # function call to setup time-vectorized obstacle track
+	global k = kk
+	# print(k)
 	Constraint{Inequality}(circle_obs_dyn,n,m,n_circles,:obs)
 end
 
-con = [[bnd, get_obs_con(k), goal_con] for k = 1:N]  # list of list in list comprehension
+con = [[bnd, get_obs_con(kk), goal_con] for kk = 1:N]  # list of list in list comprehension
 # prob_con = ProblemConstraints(con,N)
 prob = Problem(model, Objective(costfun,N), constraints=ProblemConstraints(con), x0=x0, N=N, dt=dt)
 initial_controls!(prob, U0)
