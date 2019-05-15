@@ -1,0 +1,8 @@
+Changes from the restructure branch:
+-using Pkg
+-dev mode in Julia
+-Pkg.add("TrajectoryOptimization")
+-git checkout restructure 
+-Remove last section in objective.jl
+-Add "s" to TrajectoryOptimization.jl to the direct_solver line
+-Add the various imports required in quadrotor_tests.jl
