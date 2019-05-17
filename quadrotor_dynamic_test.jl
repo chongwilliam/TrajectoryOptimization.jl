@@ -115,13 +115,6 @@ function gen_obs(k)
 end
 
 con = [[bnd, gen_obs(k), goal_con] for k = 1:N]
-ProblemConstraints(con)
-model
-
-# con = [[bnd, get_obs_con(kk), goal_con] for kk = 1:N]  # list of list in list comprehension
-# prob_con = ProblemConstraints(con,N)
-x0
-n
 Problem(model, Objective(costfun, N), constraints=ProblemConstraints(con), x0=x0, dt=dt, N=N)
 prob = Problem(model, Objective(costfun,N), constraints=ProblemConstraints(con), x0=x0, N=N, dt=dt)
 initial_controls!(prob, U0)
@@ -131,21 +124,19 @@ solve!(prob, opts_al)
 @test norm(prob.X[N] - xf) < opts_al.constraint_tolerance
 @test max_violation(prob) < opts_al.constraint_tolerance
 
-# using Plots
-# plot(to_array(prob.X)[1:3,:]')
-# plot(to_array(results_obs.U[1:solver_obs.N-1])')
-
+# Plotting
 using PyPlot
+# using PyCall
+# @pyimport matplotlib.patches as patch
 quad_position = to_array(prob.X)[1:3,:]'
-# plot(to_array(results_obs.U[1:solver_obs.N-1])')
-fig = figure("Quad Trajectory")
-ax = fig[:add_subplot](111, projection="3d")
+# fig = figure("Quad Trajectory")
+# ax = fig[:add_subplot](111, projection="3d")
 x_coord = quad_position[:,1]
 y_coord = quad_position[:,2]
 z_coord = quad_position[:,3]
 # ax.plot3D(x_coord, y_coord, z_coord)
-ax.scatter(x_coord, y_coord, z_coord)
-# fig.savefig("/home/william/Desktop/hello.png")
+# ax.scatter(x_coord, y_coord, z_coord)
+# fig.savefig("/home/william/Desktop/quad_traj.png")
 
 # plotting time history of the first moving cylinder
 x0_circle = circles[1][1]
@@ -157,19 +148,21 @@ for i = 1:N
 	y_hist[i] = y0_circle - (25.0/N)*(i-1)
 end
 
+# test plot
+
 # plotting cylinder obstacles
+plot2d = true
+
 using VectorizedRoutines
 for j = 1:N
-	fig = figure("Quad Trajectory")
-	ax = fig[:add_subplot](111, projection="3d")
-	ax.scatter(x_coord[j], y_coord[j], z_coord[j])
+	# fig = figure("Quad Trajectory")
+	# ax = fig[:add_subplot](111, projection="3d")
+	# ax.scatter(x_coord[j], y_coord[j], z_coord[j])
 	# for ii = 1:n_circles
-	    # xc = circles_final[ii][1]
-	    # yc = circles_final[ii][2]
 		xc = x_hist[j]
 		yc = y_hist[j]
-	    xset = collect(-r_circle+xc:0.5:r_circle+xc)
-	    zset = collect(0.:10.:50.)
+	    xset = collect(-r_circle+xc:0.01:r_circle+xc)
+	    zset = collect(0.:1.:50.)
 	    Xc, Zc = Matlab.meshgrid(xset, zset)
 	    ones_mat = ones(size(Xc,1),size(Xc,2))
 	    Yc1 = yc*ones_mat + sqrt.( r_circle^2*ones_mat - (Xc-xc*ones_mat).^2 )
@@ -178,23 +171,34 @@ for j = 1:N
 	    # Draw parameters
 	    rstride = 20
 	    cstride = 10
-	    ax.plot_surface(Xc, Yc1, Zc, alpha=0.2, rstride=rstride, cstride=cstride, color="r")
-	    ax.plot_surface(Xc, Yc2, Zc, alpha=0.2, rstride=rstride, cstride=cstride, color="r")
+		if plot2d == false
+			fig = figure("Quad Trajectory")
+			ax = fig[:add_subplot](111, projection="3d")
+			ax.scatter(x_coord[j], y_coord[j], z_coord[j], s=140)
+		    ax.plot_surface(Xc, Yc1, Zc, alpha=0.5, rstride=rstride, cstride=cstride, color="r")
+		    ax.plot_surface(Xc, Yc2, Zc, alpha=0.5, rstride=rstride, cstride=cstride, color="r")
+			ax.set_xlim([x_coord[j]-10, x_coord[j]+10])
+			ax.set_ylim([y_coord[j]-10, y_coord[j]+10])
+			ax.set_zlim([0, 50])
+		else
+			fig = figure("Quad Trajectory")
+			ax = fig[:add_subplot](111, projection="3d")
+			ax.scatter(x_coord[j], y_coord[j], z_coord[j], s=140)
+			ax.plot_surface(Xc, Yc1, Zc, alpha=0.5, rstride=rstride, cstride=cstride, color="r")
+			ax.plot_surface(Xc, Yc2, Zc, alpha=0.5, rstride=rstride, cstride=cstride, color="r")
+			ax.set_xlim([-10, 10])
+			ax.set_ylim([0, 50])
+			# ax.set_xlim([x_coord[j]-10, x_coord[j]+10])
+			# ax.set_ylim([y_coord[j]-10, y_coord[j]+10])
+			ax.set_zlim([0, 50])
+			ax.set_xticks(to_array([-10:2:10]))
+			ax.view_init(azim=0, elev=90)
+		end
 	# end
 
-	ax.set_xlim([x_coord[j]-10, x_coord[j]+10])
-	ax.set_ylim([y_coord[j]-10, y_coord[j]+10])
-	# ax.set_xlim([-10, 10])
-	# ax.set_ylim([0, 50])
-	ax.set_zlim([0, 50])
 	ax.set_xlabel("X")
 	ax.set_ylabel("Y")
 	ax.set_zlabel("Z")
-	# ax.view_init(azim=0, elev=90)
 	filename = string("/home/william/Desktop/trajopt_data/",string(j),".png")
 	fig.savefig(filename)
-	# sleep(3)
-	# fig.close()
 end
-
-fig.show()
